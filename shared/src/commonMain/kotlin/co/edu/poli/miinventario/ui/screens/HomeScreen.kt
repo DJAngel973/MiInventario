@@ -28,7 +28,7 @@ import androidx.compose.ui.unit.sp
 import co.edu.poli.miinventario.ui.theme.InventoryColors
 
 @Composable
-fun HomeScreen() {
+fun HomeScreen(onAddProduct: () -> Unit) {
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -89,7 +89,7 @@ fun HomeScreen() {
         }
 
         FloatingActionButton(
-            onClick = {},
+            onClick = onAddProduct,
             modifier = Modifier
                 .align(Alignment.BottomEnd)
                 .padding(24.dp),
