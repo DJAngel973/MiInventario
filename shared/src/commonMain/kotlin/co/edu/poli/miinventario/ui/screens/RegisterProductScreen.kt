@@ -29,22 +29,15 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import co.edu.poli.miinventario.product.ProductCategory
 import co.edu.poli.miinventario.product.ProductUnit
+import co.edu.poli.miinventario.ui.state.RegisterProductState
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ExposedDropdownMenuAnchorType
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RegisterProductScreen(onBack: () -> Unit) {
 
-    var name by remember { mutableStateOf("") }
-    var quantity by remember { mutableStateOf("") }
-    var minimumQuantity by remember { mutableStateOf("") }
-
-    var category by remember {
-        mutableStateOf(ProductCategory.ASEO)
-    }
-
-    var unit by remember {
-        mutableStateOf(ProductUnit.UNIT)
-    }
+    val form = remember  { RegisterProductState() }
 
     var categoryExpanded by remember {
         mutableStateOf(false)
@@ -72,8 +65,8 @@ fun RegisterProductScreen(onBack: () -> Unit) {
         Spacer(modifier = Modifier.height(24.dp))
 
         OutlinedTextField(
-            value = name,
-            onValueChange = { name = it },
+            value = form.name,
+            onValueChange = { form.name = it },
             label = { Text("Nombre del producto") },
             singleLine = true,
             modifier = Modifier.fillMaxWidth()
@@ -86,7 +79,7 @@ fun RegisterProductScreen(onBack: () -> Unit) {
             onExpandedChange = { categoryExpanded = it }
         ) {
             OutlinedTextField(
-                value = category.label,
+                value = form.category.label,
                 onValueChange = {},
                 readOnly = true,
                 label = { Text("Categoría") },
@@ -96,7 +89,9 @@ fun RegisterProductScreen(onBack: () -> Unit) {
                     )
                 },
                 modifier = Modifier
-                    .menuAnchor()
+                    .menuAnchor(
+                        type = ExposedDropdownMenuAnchorType.PrimaryNotEditable
+                    )
                     .fillMaxWidth()
             )
 
@@ -108,7 +103,7 @@ fun RegisterProductScreen(onBack: () -> Unit) {
                     DropdownMenuItem(
                         text = { Text(option.label) },
                         onClick = {
-                            category = option
+                            form.category = option
                             categoryExpanded = false
                         }
                     )
@@ -117,8 +112,8 @@ fun RegisterProductScreen(onBack: () -> Unit) {
         }
 
         OutlinedTextField(
-            value = quantity,
-            onValueChange = { quantity = it },
+            value = form.quantity,
+            onValueChange = { form.quantity = it },
             label = { Text("Cantidad disponible") },
             singleLine = true,
             modifier = Modifier.fillMaxWidth()
@@ -131,7 +126,7 @@ fun RegisterProductScreen(onBack: () -> Unit) {
             onExpandedChange = { unitExpanded = it }
         ) {
             OutlinedTextField(
-                value = unit.symbol,
+                value = form.unit.symbol,
                 onValueChange = {},
                 readOnly = true,
                 label = { Text("Unidad de medida") },
@@ -141,7 +136,9 @@ fun RegisterProductScreen(onBack: () -> Unit) {
                     )
                 },
                 modifier = Modifier
-                    .menuAnchor()
+                    .menuAnchor(
+                        type = ExposedDropdownMenuAnchorType.PrimaryNotEditable
+                    )
                     .fillMaxWidth()
             )
 
@@ -153,7 +150,7 @@ fun RegisterProductScreen(onBack: () -> Unit) {
                     DropdownMenuItem(
                         text = { Text(option.symbol) },
                         onClick = {
-                            unit = option
+                            form.unit = option
                             unitExpanded = false
                         }
                     )
@@ -162,12 +159,34 @@ fun RegisterProductScreen(onBack: () -> Unit) {
         }
 
         OutlinedTextField(
-            value = minimumQuantity,
-            onValueChange = { minimumQuantity = it },
+            value = form.minimumQuantity,
+            onValueChange = { form.minimumQuantity = it },
             label = { Text("Cantidad mínima para reponer") },
             singleLine = true,
             modifier = Modifier.fillMaxWidth()
         )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        form.errorMessage?.let { message ->
+            Text(
+                text = message,
+                color = MaterialTheme.colorScheme.error
+            )
+        }
+
+        Button(
+            onClick = {
+                val product = form.validate()
+
+                if (product != null) {
+
+                }
+            },
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text("Validar producto")
+        }
 
         Button(
             onClick = onBack,
