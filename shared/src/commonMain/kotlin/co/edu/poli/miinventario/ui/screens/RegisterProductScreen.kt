@@ -32,12 +32,22 @@ import co.edu.poli.miinventario.product.ProductUnit
 import co.edu.poli.miinventario.ui.state.RegisterProductState
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ExposedDropdownMenuAnchorType
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
+import co.edu.poli.miinventario.product.Product
+import kotlinx.coroutines.CancellationException
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun RegisterProductScreen(onBack: () -> Unit) {
+fun RegisterProductScreen(
+    onBack: () -> Unit,
+    onSaveProduct: suspend (Product) -> Unit) {
 
     val form = remember  { RegisterProductState() }
+    val scope = rememberCoroutineScope()
+    var isSaving by remember { mutableStateOf(false) }
+    var saveError by remember { mutableStateOf<String?>(null) }
+    var saveSuccess by remember { mutableStateOf(false) }
 
     var categoryExpanded by remember {
         mutableStateOf(false)
@@ -66,7 +76,11 @@ fun RegisterProductScreen(onBack: () -> Unit) {
 
         OutlinedTextField(
             value = form.name,
-            onValueChange = { form.name = it },
+            onValueChange = {
+                form.name = it
+                saveSuccess = false
+            },
+            enabled = !isSaving,
             label = { Text("Nombre del producto") },
             singleLine = true,
             modifier = Modifier.fillMaxWidth()
@@ -75,13 +89,18 @@ fun RegisterProductScreen(onBack: () -> Unit) {
         Spacer(modifier = Modifier.height(16.dp))
 
         ExposedDropdownMenuBox(
-            expanded = categoryExpanded,
-            onExpandedChange = { categoryExpanded = it }
+            expanded = categoryExpanded && !isSaving,
+            onExpandedChange = {
+                if (!isSaving) {
+                    categoryExpanded = it
+                }
+            }
         ) {
             OutlinedTextField(
                 value = form.category.label,
                 onValueChange = {},
                 readOnly = true,
+                enabled = !isSaving,
                 label = { Text("Categoría") },
                 trailingIcon = {
                     ExposedDropdownMenuDefaults.TrailingIcon(
@@ -96,15 +115,17 @@ fun RegisterProductScreen(onBack: () -> Unit) {
             )
 
             ExposedDropdownMenu(
-                expanded = categoryExpanded,
+                expanded = categoryExpanded && !isSaving,
                 onDismissRequest = { categoryExpanded = false }
             ) {
                 ProductCategory.entries.forEach { option ->
                     DropdownMenuItem(
                         text = { Text(option.label) },
+                        enabled = !isSaving,
                         onClick = {
                             form.category = option
                             categoryExpanded = false
+                            saveSuccess = false
                         }
                     )
                 }
@@ -113,7 +134,11 @@ fun RegisterProductScreen(onBack: () -> Unit) {
 
         OutlinedTextField(
             value = form.quantity,
-            onValueChange = { form.quantity = it },
+            onValueChange = {
+                form.quantity = it
+                saveSuccess = false
+            },
+            enabled = !isSaving,
             label = { Text("Cantidad disponible") },
             singleLine = true,
             modifier = Modifier.fillMaxWidth()
@@ -122,13 +147,18 @@ fun RegisterProductScreen(onBack: () -> Unit) {
         Spacer(modifier = Modifier.height(16.dp))
 
         ExposedDropdownMenuBox(
-            expanded = unitExpanded,
-            onExpandedChange = { unitExpanded = it }
+            expanded = unitExpanded && !isSaving,
+            onExpandedChange = {
+                if (!isSaving) {
+                    unitExpanded = it
+                }
+            }
         ) {
             OutlinedTextField(
                 value = form.unit.symbol,
                 onValueChange = {},
                 readOnly = true,
+                enabled = !isSaving,
                 label = { Text("Unidad de medida") },
                 trailingIcon = {
                     ExposedDropdownMenuDefaults.TrailingIcon(
@@ -143,15 +173,17 @@ fun RegisterProductScreen(onBack: () -> Unit) {
             )
 
             ExposedDropdownMenu(
-                expanded = unitExpanded,
+                expanded = unitExpanded && !isSaving,
                 onDismissRequest = { unitExpanded = false }
             ) {
                 ProductUnit.entries.forEach { option ->
                     DropdownMenuItem(
                         text = { Text(option.symbol) },
+                        enabled = !isSaving,
                         onClick = {
                             form.unit = option
                             unitExpanded = false
+                            saveSuccess = false
                         }
                     )
                 }
@@ -160,7 +192,11 @@ fun RegisterProductScreen(onBack: () -> Unit) {
 
         OutlinedTextField(
             value = form.minimumQuantity,
-            onValueChange = { form.minimumQuantity = it },
+            onValueChange = {
+                form.minimumQuantity = it
+                saveSuccess = false
+            },
+            enabled = !isSaving,
             label = { Text("Cantidad mínima para reponer") },
             singleLine = true,
             modifier = Modifier.fillMaxWidth()
@@ -175,21 +211,54 @@ fun RegisterProductScreen(onBack: () -> Unit) {
             )
         }
 
+        saveError?.let { message ->
+            Text(
+                text = message,
+                color = MaterialTheme.colorScheme.error
+            )
+        }
+
+        if (saveSuccess) {
+            Text(
+                text = "Producto agregado correctamente",
+                color = InventoryColors.blue
+            )
+        }
+
         Button(
             onClick = {
                 val product = form.validate()
 
-                if (product != null) {
+                if (product != null && !isSaving) {
+                    scope.launch {
+                        isSaving = true
+                        saveError = null
+                        saveSuccess =false
 
+                        try {
+                            onSaveProduct(product)
+                            form.clear()
+                            saveSuccess = true
+                        } catch (exception: Exception) {
+                            if (exception is CancellationException) {
+                                throw exception
+                            }
+                            saveError = "No se pudo guardar el producto"
+                        } finally {
+                            isSaving = false
+                        }
+                    }
                 }
             },
+            enabled =!isSaving,
             modifier = Modifier.fillMaxWidth()
         ) {
-            Text("Validar producto")
+            Text(if (isSaving) "Guardando..." else "Guardar producto")
         }
 
         Button(
             onClick = onBack,
+            enabled = !isSaving,
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(top = 24.dp)

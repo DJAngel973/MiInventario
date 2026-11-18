@@ -49,6 +49,15 @@ class RegisterProductState {
             }
         }
     }
+
+    fun clear() {
+        name = ""
+        category = ProductCategory.ASEO
+        quantity = ""
+        unit = ProductUnit.UNIT
+        minimumQuantity = ""
+        errorMessage = null
+    }
 }
 
 private fun ProductValidationError.toMessage(): String = when (this) {
