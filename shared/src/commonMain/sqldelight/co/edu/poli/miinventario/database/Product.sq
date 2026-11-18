@@ -1,0 +1,25 @@
+
+CREATE TABLE product (
+    id TEXT NOT NULL PRIMARY KEY,
+    name TEXT NOT NULL,
+    category TEXT NOT NULL,
+    quantity REAL NOT NULL,
+    unit TEXT NOT NULL,
+    minimumQuantity REAL NOT NULL
+);
+
+insertProduct:
+INSERT INTO product (
+    id,
+    name,
+    category,
+    quantity,
+    unit,
+    minimumQuantity
+)
+VALUES (?, ?, ?, ?, ?, ?);
+
+selectAllProducts:
+SELECT *
+FROM product
+ORDER BY name ASC;
