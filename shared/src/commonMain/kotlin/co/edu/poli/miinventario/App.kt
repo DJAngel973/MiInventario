@@ -16,6 +16,7 @@ import co.edu.poli.miinventario.ui.screens.HomeScreen
 import co.edu.poli.miinventario.ui.screens.EditProductScreen
 import co.edu.poli.miinventario.ui.screens.ProductDetailScreen
 import co.edu.poli.miinventario.ui.screens.RegisterProductScreen
+import co.edu.poli.miinventario.ui.screens.ReplenishmentScreen
 import co.edu.poli.miinventario.ui.state.ProductListLoader
 import co.edu.poli.miinventario.ui.state.ProductListState
 import co.edu.poli.miinventario.ui.theme.MiInventarioTheme
@@ -64,6 +65,7 @@ private fun AppContent(
     var selectedCategory: ProductCategory? by remember { mutableStateOf(null) }
     var editingProduct: Product? by remember { mutableStateOf(null) }
     var selectedProduct: Product? by remember { mutableStateOf(null) }
+    var showReplenishmentScreen by remember { mutableStateOf(false) }
 
     LaunchedEffect(showRegisterScreen, editingProduct, selectedProduct, reloadRequest, productListLoader) {
         if (!showRegisterScreen && editingProduct == null && selectedProduct == null) {
@@ -99,6 +101,13 @@ private fun AppContent(
                 },
                 onDeleted = { selectedProduct = null }
             )
+        } else if (showReplenishmentScreen) {
+            ReplenishmentScreen(
+                state = productListState,
+                onBack = { showReplenishmentScreen = false },
+                onSelectProduct = { selectedProduct = it },
+                onRetry = { reloadRequest++ }
+            )
         } else {
             HomeScreen(
                 state = productListState,
@@ -106,6 +115,7 @@ private fun AppContent(
                 onCategorySelected = { selectedCategory = it },
                 onAddProduct = { showRegisterScreen = true },
                 onSelectProduct = { selectedProduct = it },
+                onShowReplenishment = { showReplenishmentScreen = true },
                 onRetry = { reloadRequest++ }
             )
         }
@@ -122,6 +132,7 @@ private fun AppPreview() {
             onCategorySelected = {},
             onAddProduct = {},
             onSelectProduct = {},
+            onShowReplenishment = {},
             onRetry = {}
         )
     }
