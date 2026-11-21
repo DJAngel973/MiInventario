@@ -63,6 +63,8 @@ class ProductListLoaderTest {
 
         override suspend fun save(product: Product) = Unit
 
+        override suspend fun update(product: Product) = Unit
+
         override suspend fun getAll(): List<Product> {
             getAllCalls++
             failure?.let { throw it }

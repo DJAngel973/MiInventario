@@ -10,16 +10,20 @@ import co.edu.poli.miinventario.product.ProductValidationError
 import co.edu.poli.miinventario.product.ProductValidationResult
 import co.edu.poli.miinventario.product.validateProduct
 
-class RegisterProductState {
+class RegisterProductState(private val original: Product? = null) {
 
-    var name by mutableStateOf("")
-    var category by mutableStateOf(ProductCategory.ASEO)
-    var quantity by mutableStateOf("")
-    var unit by mutableStateOf(ProductUnit.UNIT)
-    var minimumQuantity by mutableStateOf("")
+    var name by mutableStateOf(original?.name ?: "")
+    var category by mutableStateOf(original?.category ?: ProductCategory.ASEO)
+    var quantity by mutableStateOf(original?.quantity?.toString()?.removeSuffix(".0") ?: "")
+    var unit by mutableStateOf(original?.unit ?: ProductUnit.UNIT)
+    var minimumQuantity by mutableStateOf(original?.minimumQuantity?.toString()?.removeSuffix(".0") ?: "")
 
     var errorMessage by mutableStateOf<String?>(null)
         private set
+
+    fun clearError() {
+        errorMessage = null
+    }
 
     fun validate(): Product? {
         errorMessage = null
@@ -32,7 +36,13 @@ class RegisterProductState {
             return null
         }
 
-        val product = Product(
+        val product = original?.copy(
+            name = name,
+            category = category,
+            quantity = parsedQuantity,
+            unit = unit,
+            minimumQuantity = parsedMinimum
+        ) ?: Product(
             name = name,
             category = category,
             quantity = parsedQuantity,
