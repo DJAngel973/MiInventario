@@ -65,6 +65,8 @@ class ProductListLoaderTest {
 
         override suspend fun update(product: Product) = Unit
 
+        override suspend fun updateQuantity(id: String, quantity: Double) = false
+
         override suspend fun deleteById(id: String) = false
 
         override suspend fun getAll(): List<Product> {

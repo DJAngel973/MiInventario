@@ -35,6 +35,12 @@ class SqlDelightProductRepository(
         )
     }
 
+    override suspend fun updateQuantity(id: String, quantity: Double): Boolean = queries.transactionWithResult {
+        val exists = queries.selectProductById(id).executeAsOneOrNull() != null
+        if (exists) queries.updateProductQuantity(quantity = quantity, id = id)
+        exists
+    }
+
     override suspend fun deleteById(id: String): Boolean = queries.transactionWithResult {
         val exists = queries.selectProductById(id).executeAsOneOrNull() != null
         if (exists) queries.deleteProduct(id)
