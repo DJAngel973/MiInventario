@@ -5,6 +5,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -22,6 +23,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -38,12 +41,16 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import co.edu.poli.miinventario.product.Product
 import co.edu.poli.miinventario.product.ProductCategory
+import co.edu.poli.miinventario.product.countByCategory
+import co.edu.poli.miinventario.product.filterByCategory
 import co.edu.poli.miinventario.ui.state.ProductListState
 import co.edu.poli.miinventario.ui.theme.InventoryColors
 
 @Composable
 fun HomeScreen(
     state: ProductListState,
+    selectedCategory: ProductCategory?,
+    onCategorySelected: (ProductCategory?) -> Unit,
     onAddProduct: () -> Unit,
     onRetry: () -> Unit
 ) {
@@ -69,18 +76,27 @@ fun HomeScreen(
                 )
             }
 
-            val productCount = when (state) {
-                ProductListState.Empty -> 0
-                is ProductListState.Content -> state.products.size
+            val products = when (state) {
+                ProductListState.Empty -> emptyList()
+                is ProductListState.Content -> state.products
                 else -> null
             }
-            if (productCount != null) {
+            if (products != null) {
+                FlowRow(
+                    modifier = Modifier.fillMaxWidth().padding(start = 24.dp, end = 24.dp, top = 12.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    CategoryFilterChip("Todos", null, products, selectedCategory, onCategorySelected)
+                    CategoryFilterChip("Aseo", ProductCategory.ASEO, products, selectedCategory, onCategorySelected)
+                    CategoryFilterChip("Cocina", ProductCategory.COCINA, products, selectedCategory, onCategorySelected)
+                }
                 Text(
-                    text = "$productCount PRODUCTOS REGISTRADOS",
+                    text = "${products.size} PRODUCTOS REGISTRADOS",
                     style = MaterialTheme.typography.labelMedium,
                     color = InventoryColors.mutedText,
                     fontWeight = FontWeight.SemiBold,
-                    modifier = Modifier.padding(start = 24.dp, end = 24.dp, top = 20.dp, bottom = 8.dp)
+                    modifier = Modifier.padding(start = 24.dp, end = 24.dp, top = 12.dp, bottom = 8.dp)
                 )
             }
 
@@ -104,13 +120,23 @@ fun HomeScreen(
                             Button(onClick = onRetry) { Text("Reintentar") }
                         }
                     )
-                    is ProductListState.Content -> LazyColumn(
-                        modifier = Modifier.widthIn(max = 720.dp).fillMaxWidth().fillMaxHeight(),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
-                        contentPadding = PaddingValues(bottom = 80.dp)
-                    ) {
-                        items(state.products, key = { it.id }) { product ->
-                            ProductCard(product)
+                    is ProductListState.Content -> {
+                        val visibleProducts = state.products.filterByCategory(selectedCategory)
+                        if (visibleProducts.isEmpty()) {
+                            MessageCard(
+                                title = "No hay productos en esta categoría",
+                                message = "Selecciona otra categoría para ver productos"
+                            )
+                        } else {
+                            LazyColumn(
+                                modifier = Modifier.widthIn(max = 720.dp).fillMaxWidth().fillMaxHeight(),
+                                verticalArrangement = Arrangement.spacedBy(8.dp),
+                                contentPadding = PaddingValues(bottom = 80.dp)
+                            ) {
+                                items(visibleProducts, key = { it.id }) { product ->
+                                    ProductCard(product)
+                                }
+                            }
                         }
                     }
                 }
@@ -134,6 +160,27 @@ fun HomeScreen(
             )
         }
     }
+}
+
+@Composable
+private fun CategoryFilterChip(
+    label: String,
+    category: ProductCategory?,
+    products: List<Product>,
+    selectedCategory: ProductCategory?,
+    onCategorySelected: (ProductCategory?) -> Unit
+) {
+    FilterChip(
+        selected = selectedCategory == category,
+        onClick = { onCategorySelected(category) },
+        label = { Text("$label ${products.countByCategory(category)}") },
+        colors = FilterChipDefaults.filterChipColors(
+            containerColor = InventoryColors.card,
+            labelColor = InventoryColors.text,
+            selectedContainerColor = InventoryColors.header,
+            selectedLabelColor = InventoryColors.blue
+        )
+    )
 }
 
 @Composable

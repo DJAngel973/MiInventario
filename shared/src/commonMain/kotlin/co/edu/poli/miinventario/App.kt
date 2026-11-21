@@ -8,6 +8,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.tooling.preview.Preview
 import co.edu.poli.miinventario.product.Product
+import co.edu.poli.miinventario.product.ProductCategory
 import co.edu.poli.miinventario.product.ProductRepository
 import co.edu.poli.miinventario.ui.screens.HomeScreen
 import co.edu.poli.miinventario.ui.screens.RegisterProductScreen
@@ -40,6 +41,7 @@ private fun AppContent(
     }
     var productListState: ProductListState by remember { mutableStateOf(ProductListState.Loading) }
     var reloadRequest by remember { mutableStateOf(0) }
+    var selectedCategory: ProductCategory? by remember { mutableStateOf(null) }
 
     LaunchedEffect(showRegisterScreen, reloadRequest, productListLoader) {
         if (!showRegisterScreen) {
@@ -57,6 +59,8 @@ private fun AppContent(
         } else {
             HomeScreen(
                 state = productListState,
+                selectedCategory = selectedCategory,
+                onCategorySelected = { selectedCategory = it },
                 onAddProduct = { showRegisterScreen = true },
                 onRetry = { reloadRequest++ }
             )
@@ -70,6 +74,8 @@ private fun AppPreview() {
     MiInventarioTheme {
         HomeScreen(
             state = ProductListState.Empty,
+            selectedCategory = null,
+            onCategorySelected = {},
             onAddProduct = {},
             onRetry = {}
         )
