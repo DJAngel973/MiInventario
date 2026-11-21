@@ -6,5 +6,8 @@ interface ProductRepository {
 
     suspend fun update(product: Product)
 
+    /** Devuelve false si el UUID ya no existe. */
+    suspend fun deleteById(id: String): Boolean
+
     suspend fun getAll(): List<Product>
 }

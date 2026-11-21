@@ -28,3 +28,9 @@ updateProduct:
 UPDATE product
 SET name = ?, category = ?, quantity = ?, unit = ?, minimumQuantity = ?
 WHERE id = ?;
+
+selectProductById:
+SELECT id FROM product WHERE id = ?;
+
+deleteProduct:
+DELETE FROM product WHERE id = ?;

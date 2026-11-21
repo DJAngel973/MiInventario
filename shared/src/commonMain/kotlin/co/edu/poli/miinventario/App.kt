@@ -13,6 +13,7 @@ import co.edu.poli.miinventario.product.ProductRepository
 import co.edu.poli.miinventario.product.ProductWriteService
 import co.edu.poli.miinventario.ui.screens.HomeScreen
 import co.edu.poli.miinventario.ui.screens.EditProductScreen
+import co.edu.poli.miinventario.ui.screens.ProductDetailScreen
 import co.edu.poli.miinventario.ui.screens.RegisterProductScreen
 import co.edu.poli.miinventario.ui.state.ProductListLoader
 import co.edu.poli.miinventario.ui.state.ProductListState
@@ -35,6 +36,9 @@ fun App(repository: ProductRepository) {
             withContext(Dispatchers.IO) {
                 productWriteService.update(product)
             }
+        },
+        onDeleteProduct = { id ->
+            withContext(Dispatchers.IO) { repository.deleteById(id) }
         }
     )
 }
@@ -43,7 +47,8 @@ fun App(repository: ProductRepository) {
 private fun AppContent(
     productListLoader: ProductListLoader,
     onSaveProduct: suspend (Product) -> Unit,
-    onUpdateProduct: suspend (Product) -> Unit
+    onUpdateProduct: suspend (Product) -> Unit,
+    onDeleteProduct: suspend (String) -> Boolean
 ) {
     var showRegisterScreen by remember {
         mutableStateOf(false)
@@ -52,9 +57,10 @@ private fun AppContent(
     var reloadRequest by remember { mutableStateOf(0) }
     var selectedCategory: ProductCategory? by remember { mutableStateOf(null) }
     var editingProduct: Product? by remember { mutableStateOf(null) }
+    var selectedProduct: Product? by remember { mutableStateOf(null) }
 
-    LaunchedEffect(showRegisterScreen, editingProduct, reloadRequest, productListLoader) {
-        if (!showRegisterScreen && editingProduct == null) {
+    LaunchedEffect(showRegisterScreen, editingProduct, selectedProduct, reloadRequest, productListLoader) {
+        if (!showRegisterScreen && editingProduct == null && selectedProduct == null) {
             productListState = ProductListState.Loading
             productListState = productListLoader.load()
         }
@@ -72,13 +78,24 @@ private fun AppContent(
                 onBack = { editingProduct = null },
                 onUpdateProduct = onUpdateProduct
             )
+        } else if (selectedProduct != null) {
+            ProductDetailScreen(
+                product = selectedProduct!!,
+                onBack = { selectedProduct = null },
+                onEdit = {
+                    editingProduct = selectedProduct
+                    selectedProduct = null
+                },
+                onDeleteProduct = onDeleteProduct,
+                onDeleted = { selectedProduct = null }
+            )
         } else {
             HomeScreen(
                 state = productListState,
                 selectedCategory = selectedCategory,
                 onCategorySelected = { selectedCategory = it },
                 onAddProduct = { showRegisterScreen = true },
-                onEditProduct = { editingProduct = it },
+                onSelectProduct = { selectedProduct = it },
                 onRetry = { reloadRequest++ }
             )
         }
@@ -94,7 +111,7 @@ private fun AppPreview() {
             selectedCategory = null,
             onCategorySelected = {},
             onAddProduct = {},
-            onEditProduct = {},
+            onSelectProduct = {},
             onRetry = {}
         )
     }

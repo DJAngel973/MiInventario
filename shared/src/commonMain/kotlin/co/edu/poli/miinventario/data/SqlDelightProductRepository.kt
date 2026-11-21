@@ -35,6 +35,12 @@ class SqlDelightProductRepository(
         )
     }
 
+    override suspend fun deleteById(id: String): Boolean = queries.transactionWithResult {
+        val exists = queries.selectProductById(id).executeAsOneOrNull() != null
+        if (exists) queries.deleteProduct(id)
+        exists
+    }
+
     override suspend fun getAll(): List<Product> {
         return queries.selectAllProducts()
             .executeAsList()
