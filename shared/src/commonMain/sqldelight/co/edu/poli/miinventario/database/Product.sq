@@ -34,3 +34,6 @@ SELECT id FROM product WHERE id = ?;
 
 deleteProduct:
 DELETE FROM product WHERE id = ?;
+
+updateProductQuantity:
+UPDATE product SET quantity = ? WHERE id = ?;

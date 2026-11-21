@@ -10,6 +10,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import co.edu.poli.miinventario.product.Product
 import co.edu.poli.miinventario.product.ProductCategory
 import co.edu.poli.miinventario.product.ProductRepository
+import co.edu.poli.miinventario.product.ProductQuantityService
 import co.edu.poli.miinventario.product.ProductWriteService
 import co.edu.poli.miinventario.ui.screens.HomeScreen
 import co.edu.poli.miinventario.ui.screens.EditProductScreen
@@ -25,6 +26,7 @@ import kotlinx.coroutines.withContext
 fun App(repository: ProductRepository) {
     val productListLoader = remember(repository) { ProductListLoader(repository) }
     val productWriteService = remember(repository) { ProductWriteService(repository) }
+    val productQuantityService = remember(repository) { ProductQuantityService(repository) }
     AppContent(
         productListLoader = productListLoader,
         onSaveProduct = { product ->
@@ -39,6 +41,9 @@ fun App(repository: ProductRepository) {
         },
         onDeleteProduct = { id ->
             withContext(Dispatchers.IO) { repository.deleteById(id) }
+        },
+        onUpdateQuantity = { product, quantity ->
+            withContext(Dispatchers.IO) { productQuantityService.update(product, quantity) }
         }
     )
 }
@@ -48,7 +53,8 @@ private fun AppContent(
     productListLoader: ProductListLoader,
     onSaveProduct: suspend (Product) -> Unit,
     onUpdateProduct: suspend (Product) -> Unit,
-    onDeleteProduct: suspend (String) -> Boolean
+    onDeleteProduct: suspend (String) -> Boolean,
+    onUpdateQuantity: suspend (Product, Double) -> Boolean
 ) {
     var showRegisterScreen by remember {
         mutableStateOf(false)
@@ -87,6 +93,10 @@ private fun AppContent(
                     selectedProduct = null
                 },
                 onDeleteProduct = onDeleteProduct,
+                onUpdateQuantity = onUpdateQuantity,
+                onQuantitySaved = { quantity ->
+                    selectedProduct = selectedProduct?.copy(quantity = quantity)
+                },
                 onDeleted = { selectedProduct = null }
             )
         } else {
