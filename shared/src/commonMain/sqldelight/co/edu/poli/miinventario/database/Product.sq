@@ -23,3 +23,8 @@ selectAllProducts:
 SELECT *
 FROM product
 ORDER BY name ASC;
+
+updateProduct:
+UPDATE product
+SET name = ?, category = ?, quantity = ?, unit = ?, minimumQuantity = ?
+WHERE id = ?;

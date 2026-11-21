@@ -24,6 +24,17 @@ class SqlDelightProductRepository(
         )
     }
 
+    override suspend fun update(product: Product) {
+        queries.updateProduct(
+            name = product.name,
+            category = product.category.name,
+            quantity = product.quantity,
+            unit = product.unit.name,
+            minimumQuantity = product.minimumQuantity,
+            id = product.id
+        )
+    }
+
     override suspend fun getAll(): List<Product> {
         return queries.selectAllProducts()
             .executeAsList()

@@ -10,7 +10,9 @@ import androidx.compose.ui.tooling.preview.Preview
 import co.edu.poli.miinventario.product.Product
 import co.edu.poli.miinventario.product.ProductCategory
 import co.edu.poli.miinventario.product.ProductRepository
+import co.edu.poli.miinventario.product.ProductWriteService
 import co.edu.poli.miinventario.ui.screens.HomeScreen
+import co.edu.poli.miinventario.ui.screens.EditProductScreen
 import co.edu.poli.miinventario.ui.screens.RegisterProductScreen
 import co.edu.poli.miinventario.ui.state.ProductListLoader
 import co.edu.poli.miinventario.ui.state.ProductListState
@@ -21,11 +23,17 @@ import kotlinx.coroutines.withContext
 @Composable
 fun App(repository: ProductRepository) {
     val productListLoader = remember(repository) { ProductListLoader(repository) }
+    val productWriteService = remember(repository) { ProductWriteService(repository) }
     AppContent(
         productListLoader = productListLoader,
         onSaveProduct = { product ->
             withContext(Dispatchers.IO) {
-                repository.save(product)
+                productWriteService.register(product)
+            }
+        },
+        onUpdateProduct = { product ->
+            withContext(Dispatchers.IO) {
+                productWriteService.update(product)
             }
         }
     )
@@ -34,7 +42,8 @@ fun App(repository: ProductRepository) {
 @Composable
 private fun AppContent(
     productListLoader: ProductListLoader,
-    onSaveProduct: suspend (Product) -> Unit
+    onSaveProduct: suspend (Product) -> Unit,
+    onUpdateProduct: suspend (Product) -> Unit
 ) {
     var showRegisterScreen by remember {
         mutableStateOf(false)
@@ -42,9 +51,10 @@ private fun AppContent(
     var productListState: ProductListState by remember { mutableStateOf(ProductListState.Loading) }
     var reloadRequest by remember { mutableStateOf(0) }
     var selectedCategory: ProductCategory? by remember { mutableStateOf(null) }
+    var editingProduct: Product? by remember { mutableStateOf(null) }
 
-    LaunchedEffect(showRegisterScreen, reloadRequest, productListLoader) {
-        if (!showRegisterScreen) {
+    LaunchedEffect(showRegisterScreen, editingProduct, reloadRequest, productListLoader) {
+        if (!showRegisterScreen && editingProduct == null) {
             productListState = ProductListState.Loading
             productListState = productListLoader.load()
         }
@@ -56,12 +66,19 @@ private fun AppContent(
                 onBack = { showRegisterScreen = false },
                 onSaveProduct = onSaveProduct
             )
+        } else if (editingProduct != null) {
+            EditProductScreen(
+                product = editingProduct!!,
+                onBack = { editingProduct = null },
+                onUpdateProduct = onUpdateProduct
+            )
         } else {
             HomeScreen(
                 state = productListState,
                 selectedCategory = selectedCategory,
                 onCategorySelected = { selectedCategory = it },
                 onAddProduct = { showRegisterScreen = true },
+                onEditProduct = { editingProduct = it },
                 onRetry = { reloadRequest++ }
             )
         }
@@ -77,6 +94,7 @@ private fun AppPreview() {
             selectedCategory = null,
             onCategorySelected = {},
             onAddProduct = {},
+            onEditProduct = {},
             onRetry = {}
         )
     }

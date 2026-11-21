@@ -2,6 +2,7 @@ package co.edu.poli.miinventario.ui.screens
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -52,6 +53,7 @@ fun HomeScreen(
     selectedCategory: ProductCategory?,
     onCategorySelected: (ProductCategory?) -> Unit,
     onAddProduct: () -> Unit,
+    onEditProduct: (Product) -> Unit,
     onRetry: () -> Unit
 ) {
     Box(
@@ -134,7 +136,7 @@ fun HomeScreen(
                                 contentPadding = PaddingValues(bottom = 80.dp)
                             ) {
                                 items(visibleProducts, key = { it.id }) { product ->
-                                    ProductCard(product)
+                                    ProductCard(product, onClick = { onEditProduct(product) })
                                 }
                             }
                         }
@@ -212,9 +214,9 @@ private fun MessageCard(
 }
 
 @Composable
-private fun ProductCard(product: Product) {
+private fun ProductCard(product: Product, onClick: () -> Unit) {
     Surface(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
         color = InventoryColors.card,
         shape = RoundedCornerShape(14.dp),
         border = BorderStroke(1.dp, InventoryColors.border)
