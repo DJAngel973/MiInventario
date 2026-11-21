@@ -53,7 +53,7 @@ fun HomeScreen(
     selectedCategory: ProductCategory?,
     onCategorySelected: (ProductCategory?) -> Unit,
     onAddProduct: () -> Unit,
-    onEditProduct: (Product) -> Unit,
+    onSelectProduct: (Product) -> Unit,
     onRetry: () -> Unit
 ) {
     Box(
@@ -136,7 +136,7 @@ fun HomeScreen(
                                 contentPadding = PaddingValues(bottom = 80.dp)
                             ) {
                                 items(visibleProducts, key = { it.id }) { product ->
-                                    ProductCard(product, onClick = { onEditProduct(product) })
+                                    ProductCard(product, onClick = { onSelectProduct(product) })
                                 }
                             }
                         }
