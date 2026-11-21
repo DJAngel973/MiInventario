@@ -29,6 +29,7 @@ import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -44,6 +45,9 @@ import co.edu.poli.miinventario.product.Product
 import co.edu.poli.miinventario.product.ProductCategory
 import co.edu.poli.miinventario.product.countByCategory
 import co.edu.poli.miinventario.product.filterByCategory
+import co.edu.poli.miinventario.product.needsReplenishment
+import co.edu.poli.miinventario.product.productsToReplenish
+import co.edu.poli.miinventario.product.replenishmentCount
 import co.edu.poli.miinventario.ui.state.ProductListState
 import co.edu.poli.miinventario.ui.theme.InventoryColors
 
@@ -54,6 +58,7 @@ fun HomeScreen(
     onCategorySelected: (ProductCategory?) -> Unit,
     onAddProduct: () -> Unit,
     onSelectProduct: (Product) -> Unit,
+    onShowReplenishment: () -> Unit,
     onRetry: () -> Unit
 ) {
     Box(
@@ -93,6 +98,7 @@ fun HomeScreen(
                     CategoryFilterChip("Aseo", ProductCategory.ASEO, products, selectedCategory, onCategorySelected)
                     CategoryFilterChip("Cocina", ProductCategory.COCINA, products, selectedCategory, onCategorySelected)
                 }
+                ReplenishmentBanner(products.replenishmentCount(), onShowReplenishment)
                 Text(
                     text = "${products.size} PRODUCTOS REGISTRADOS",
                     style = MaterialTheme.typography.labelMedium,
@@ -160,6 +166,86 @@ fun HomeScreen(
                     contentDescription = "Agregar producto"
                 }
             )
+        }
+    }
+}
+
+@Composable
+private fun ReplenishmentBanner(count: Int, onShowReplenishment: () -> Unit) {
+    val amber = Color(0xFFF5C45E)
+    Box(modifier = Modifier.fillMaxWidth().padding(start = 24.dp, end = 24.dp, top = 8.dp), contentAlignment = Alignment.Center) {
+        Surface(
+            modifier = Modifier.widthIn(max = 720.dp).fillMaxWidth(),
+            color = Color(0xFF3A2C0F),
+            shape = RoundedCornerShape(14.dp),
+            border = BorderStroke(1.dp, Color(0xFF8E6B13))
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(start = 12.dp, end = 4.dp, top = 8.dp, bottom = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Text("⚠", color = amber, style = MaterialTheme.typography.titleMedium)
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("$count productos por reponer", color = amber, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
+                    Text("Cantidad igual o menor al mínimo", color = amber, style = MaterialTheme.typography.bodySmall)
+                }
+                TextButton(onClick = onShowReplenishment) { Text("Ver ›", color = InventoryColors.blue) }
+            }
+        }
+    }
+}
+
+@Composable
+fun ReplenishmentScreen(
+    state: ProductListState,
+    onBack: () -> Unit,
+    onSelectProduct: (Product) -> Unit,
+    onRetry: () -> Unit
+) {
+    Column(modifier = Modifier.fillMaxSize().safeContentPadding().background(InventoryColors.background)) {
+        Row(
+            modifier = Modifier.fillMaxWidth().height(68.dp).background(InventoryColors.header).padding(horizontal = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            TextButton(onClick = onBack) { Text("←", color = InventoryColors.text, style = MaterialTheme.typography.titleLarge) }
+            Text("Productos por reponer", color = InventoryColors.text, style = MaterialTheme.typography.titleLarge)
+        }
+        Box(
+            modifier = Modifier.weight(1f).fillMaxWidth().padding(24.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            when (state) {
+                ProductListState.Loading -> CircularProgressIndicator(color = InventoryColors.blue)
+                ProductListState.Error -> MessageCard(
+                    title = "No se pudieron cargar los productos",
+                    message = "Verifica e intenta nuevamente",
+                    action = { Button(onClick = onRetry) { Text("Reintentar") } }
+                )
+                ProductListState.Empty -> MessageCard(
+                    title = "No hay productos por reponer",
+                    message = "Todos los productos están por encima de su cantidad mínima"
+                )
+                is ProductListState.Content -> {
+                    val products = state.products.productsToReplenish()
+                    if (products.isEmpty()) {
+                        MessageCard(
+                            title = "No hay productos por reponer",
+                            message = "Todos los productos están por encima de su cantidad mínima"
+                        )
+                    } else {
+                        LazyColumn(
+                            modifier = Modifier.widthIn(max = 720.dp).fillMaxWidth().fillMaxHeight(),
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                            contentPadding = PaddingValues(bottom = 24.dp)
+                        ) {
+                            items(products, key = { it.id }) { product ->
+                                ProductCard(product, onClick = { onSelectProduct(product) })
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 }
@@ -262,13 +348,25 @@ private fun ProductCard(product: Product, onClick: () -> Unit) {
                 )
             }
 
-            Text(
-                text = "${product.quantity.displayQuantity()} ${product.unit.symbol}",
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.Bold,
-                color = InventoryColors.text,
-                maxLines = 1
-            )
+            Column(horizontalAlignment = Alignment.End) {
+                Text(
+                    text = "${product.quantity.displayQuantity()} ${product.unit.symbol}",
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = if (product.needsReplenishment()) Color(0xFFFF6B6B) else InventoryColors.text,
+                    maxLines = 1
+                )
+                if (product.needsReplenishment()) {
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        "Reponer",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color(0xFFFF6B6B),
+                        modifier = Modifier.background(Color(0xFF3A1F25), RoundedCornerShape(10.dp))
+                            .padding(horizontal = 7.dp, vertical = 2.dp)
+                    )
+                }
+            }
         }
     }
 }

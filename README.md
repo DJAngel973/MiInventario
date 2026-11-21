@@ -2,7 +2,7 @@
 
 **Aplicación multiplataforma para organizar productos de aseo y cocina del hogar.** Permite registrar cantidades disponibles y un mínimo de reposición. Está desarrollada con Kotlin Multiplatform, Compose Multiplatform y SQLDelight, con SQLite local para Android y Desktop JVM. Funciona sin conexión a internet durante su uso: no tiene servidor, autenticación ni sincronización entre dispositivos.
 
-> **Estado actual:** RF1 (registro de productos) está implementado. El equipo ha comprobado manualmente el registro y la persistencia en Desktop; el APK Android compila, pero aquí no se afirma que la persistencia Android haya sido verificada en un dispositivo. RF2–RF7 siguen pendientes. La pantalla Inicio aún muestra el estado vacío y no consulta el repositorio para listar productos.
+> **Estado del código:** RF1–RF7 están implementados para Android y Desktop mediante la interfaz compartida.
 
 ## Inicio rápido
 
@@ -37,17 +37,31 @@ MiInventario/
 │       ├── commonMain/
 │       │   ├── kotlin/co/edu/poli/miinventario/
 │       │   │   ├── App.kt
-│       │   │   ├── product/             # Product, validación y ProductRepository
+│       │   │   ├── product/
+│       │   │   │   ├── Product.kt
+│       │   │   │   ├── ProductRepository.kt
+│       │   │   │   ├── ProductValidator.kt
+│       │   │   │   ├── ProductFilters.kt
+│       │   │   │   ├── ProductReplenishment.kt
+│       │   │   │   ├── ProductWriteService.kt
+│       │   │   │   └── ProductQuantity.kt
 │       │   │   ├── data/                # SqlDelightProductRepository
-│       │   │   └── ui/                  # pantallas, estado del formulario y tema
+│       │   │   └── ui/
+│       │   │       ├── screens/
+│       │   │       │   ├── HomeScreen.kt             # Inicio y Reposición
+│       │   │       │   ├── ProductDetailScreen.kt
+│       │   │       │   └── RegisterProductScreen.kt  # Registro y Edición
+│       │   │       ├── state/           # ProductListState, RegisterProductState
+│       │   │       └── theme/           # colores y tema Material 3
 │       │   └── sqldelight/co/edu/poli/miinventario/database/Product.sq
 │       ├── androidMain/kotlin/co/edu/poli/miinventario/data/
 │       │   └── AndroidDatabaseFactory.kt
 │       ├── jvmMain/kotlin/co/edu/poli/miinventario/data/
 │       │   └── DesktopDatabaseFactory.kt
-│       ├── commonTest/                  # pruebas de validación de productos
-│       ├── jvmTest/                     # pruebas host JVM existentes
-│       └── androidHostTest/             # pruebas host Android existentes
+│       ├── commonTest/                  # validación, filtros y reposición
+│       ├── jvmTest/                     # carga, formato, escritura, eliminación
+│       │                                # y actualización de cantidades (SQLite en memoria)
+│       └── androidHostTest/             # prueba host Android básica
 ├── scripts/dev.sh
 ├── gradle/libs.versions.toml
 ├── gradlew
@@ -61,7 +75,7 @@ MiInventario/
 - `shared/src/androidMain` y `shared/src/jvmMain` solo contienen la creación de la base según la plataforma.
 - `Product.sq` define la tabla y las consultas; Gradle/SQLDelight generan la API Kotlin durante la compilación.
 
-Esta es una **separación práctica de responsabilidades**, no una implementación completa de Clean Architecture, MVVM o DDD. `App.kt` conecta Inicio y Registro mediante estado Compose y callbacks; las pantallas no ejecutan SQL directamente.
+Esta es una **separación práctica de responsabilidades**, no una implementación completa de Clean Architecture, MVVM o DDD. `App.kt` conecta las vistas mediante estado Compose y callbacks; las pantallas no ejecutan SQL directamente. El diagrama siguiente sigue siendo válido: las nuevas vistas y reglas pertenecen a `shared` y usan el mismo repositorio.
 
 ### Flujo de componentes
 
@@ -79,9 +93,17 @@ Las dos bases son independientes. No existe sincronización Android–Desktop.
 
 ## Datos y persistencia
 
-`Product.sq` define una tabla `product` con `id` de texto como clave primaria, nombre, categoría, cantidad disponible, unidad y cantidad mínima. También define `insertProduct` y `selectAllProducts`; esta última consulta ordena por nombre. SQLDelight genera `InventoryDatabase` y `productQueries` a partir de ese archivo. **No se deben añadir manualmente a Git los archivos generados** dentro de `build/`.
+`Product.sq` define la tabla `product`: UUID de texto como clave primaria, nombre, categoría, cantidad, unidad y mínimo. SQLDelight genera `InventoryDatabase` y `productQueries`; no se deben añadir a Git los archivos generados dentro de `build/`. La categoría y la unidad se guardan por el nombre de sus enumeraciones. `selectAllProducts` ordena por nombre.
 
-`Product` genera un identificador UUID al construirse. `SqlDelightProductRepository.save` inserta los campos mediante la consulta generada. `getAll` recupera filas y las convierte nuevamente a `Product`. La categoría y la unidad se guardan por el nombre de sus enumeraciones. El esquema no impone unicidad al nombre: pueden existir productos distintos con el mismo nombre.
+| Operación de `ProductRepository` | Comportamiento actual |
+|---|---|
+| `save(product)` | Inserta un producto con su UUID. |
+| `getAll()` | Consulta y convierte todas las filas a `Product`. |
+| `update(product)` | Actualiza los datos de un UUID existente. |
+| `deleteById(id)` | Elimina por UUID; devuelve `false` si no existe. |
+| `updateQuantity(id, quantity)` | Actualiza solo `quantity`; devuelve `false` si no existe. |
+
+`App.kt` ejecuta las operaciones de almacenamiento en `Dispatchers.IO` mediante el repositorio y los servicios de escritura/cantidad. `ProductWriteService` comprueba duplicados antes de registrar o editar: compara **nombre sin espacios externos, ignorando mayúsculas**, dentro de la **misma categoría**. En edición excluye el UUID propio y permite actualizar otros campos de duplicados históricos si nombre y categoría no cambian; no borra ni fusiona esos registros. Esta comprobación previa **no sustituye una restricción `UNIQUE` en SQLite ante escrituras simultáneas**. La tabla no impone unicidad por nombre y categoría.
 
 En Android, `AndroidDatabaseFactory` usa `AndroidSqliteDriver`, el esquema generado y el `Context` de la aplicación para crear o abrir `miinventario.db` en el almacenamiento privado de esa aplicación. En Desktop, `DesktopDatabaseFactory` crea `~/.miinventario/` si hace falta y abre `~/.miinventario/miinventario.db` mediante el driver SQLite para JVM.
 
@@ -91,17 +113,22 @@ En Android, `AndroidDatabaseFactory` usa `AndroidSqliteDriver`, el esquema gener
 
 | Código | Alcance | Estado actual |
 |---|---|---|
-| **RF1** | Registrar nombre, categoría, cantidad, unidad y mínimo. | **Implementado.** Formulario, validación, escritura local, confirmación, limpieza tras guardar y deshabilitación temporal de controles durante la operación. Registro y persistencia comprobados manualmente en Desktop por el equipo. Persistencia Android pendiente de comprobar en un dispositivo. |
-| **RF2** | Consultar/listar productos registrados. | **Pendiente en la interfaz.** El repositorio ya ofrece `getAll()`, pero Inicio no lo usa ni muestra registros. |
-| **RF3** | Filtrar por categoría Aseo o Cocina. | Pendiente. |
-| **RF4** | Editar datos de un producto. | Pendiente. |
-| **RF5** | Eliminar con confirmación previa. | Pendiente. |
-| **RF6** | Actualizar la cantidad disponible. | Pendiente. |
-| **RF7** | Consultar productos con cantidad igual o inferior al mínimo. | Pendiente. El mínimo ya se registra en RF1. |
+| **RF1** | Registrar nombre, categoría, cantidad, unidad y mínimo. | **Implementado.** Valida, guarda, confirma y limpia el formulario tras guardar. |
+| **RF2** | Consultar y listar productos. | **Implementado.** Inicio carga `getAll()` y muestra estados de carga, vacío y error con reintento. |
+| **RF3** | Filtrar por Todos, Aseo o Cocina. | **Implementado.** Filtra en memoria y muestra contadores por categoría. |
+| **RF4** | Editar un producto. | **Implementado.** Precarga datos y actualiza el UUID original, con validación y confirmación. |
+| **RF5** | Eliminar con confirmación. | **Implementado.** Detalle solicita confirmación y elimina solo el UUID seleccionado. |
+| **RF6** | Actualizar cantidad disponible. | **Implementado.** Detalle propone pasos de 1 `und` o 0,5 `kg`/`lb`/`L`; guarda solo la cantidad al confirmar. |
+| **RF7** | Consultar productos por reponer. | **Implementado.** Usa `quantity <= minimumQuantity`; muestra aviso, etiquetas, detalle y vista específica. |
 
-Las cinco pantallas previstas son **Inicio / Inventario**, **Registrar producto**, **Detalle del producto**, **Editar producto** y **Productos por reponer**. Hoy existen Inicio y Registro; las demás están pendientes. Al guardar desde Registro, `RegisterProductScreen` usa el producto normalizado por `ProductValidator`, llama al repositorio, muestra una confirmación y limpia el formulario. Si falla la operación, muestra un error. La pantalla Inicio todavía presenta un estado vacío fijo, incluso si ya hay registros; mostrar el listado corresponde a RF2.
+### Navegación actual
 
-Las reglas actuales de RF1 rechazan nombre en blanco, cantidades negativas o no finitas y fracciones para `und`. Admiten `0` tanto para la cantidad como para el mínimo y decimales para `kg`, `lb` y `L`. No se exige un nombre único.
+- **Inicio → Registro:** botón `+`; al volver, Inicio recarga la lista.
+- **Inicio → Detalle:** seleccionar una tarjeta; desde Detalle se puede **Editar**, actualizar cantidad o **Eliminar** tras confirmar. Al regresar, se recarga Inicio.
+- **Inicio → Productos por reponer:** acción **Ver** del aviso; la vista reutiliza las tarjetas y abre **Detalle**. Al cerrar Detalle se regresa a la vista de reposición; desde ella se vuelve a Inicio.
+- **Detalle → Edición:** al salir del formulario se vuelve al inventario o a la vista de reposición desde la que se abrió Detalle. El filtro de categoría seleccionado en Inicio se conserva en el estado de `App.kt`.
+
+`ProductValidator` rechaza nombre en blanco, cantidades negativas o no finitas y fracciones para `und`; admite cero y decimales para `kg`, `lb` y `L`. La comprobación de duplicados depende del repositorio y está separada de estas reglas del modelo. Los filtros y la reposición se calculan en memoria a partir de la lista cargada; no disparan consultas SQLite por cada cambio de filtro.
 
 ## Preparar el entorno
 
@@ -143,7 +170,17 @@ Ejecutar desde la raíz del proyecto. En Linux/macOS se usa `./gradlew`; en Powe
 | Compilar Desktop | `./gradlew :desktopApp:compileKotlin` | `.\gradlew.bat :desktopApp:compileKotlin` |
 | Ejecutar Desktop | `./gradlew :desktopApp:run` | `.\gradlew.bat :desktopApp:run` |
 
-La tarea `:desktopApp:run` permanece activa mientras la ventana está abierta; eso no indica un bloqueo de compilación. `commonTest` contiene pruebas de validación de productos; `jvmTest` y `androidHostTest` aún incluyen comprobaciones básicas de plantilla. No hay pruebas automatizadas de persistencia ni una verificación instrumental en dispositivo Android documentadas aquí.
+La tarea `:desktopApp:run` permanece activa mientras la ventana está abierta; eso no indica un bloqueo de compilación. Las pruebas automatizadas actuales incluyen:
+
+- `commonTest`: validación de productos, filtros RF3 y regla/conteo de reposición RF7.
+- `jvmTest`: carga del listado, formato de cantidades, duplicados y edición, eliminación y actualización de cantidad; las pruebas de repositorio usan SQLite en memoria. También queda una prueba básica de plantilla.
+- `androidHostTest`: una prueba host básica. No equivale a pruebas instrumentadas ni a una verificación manual completa en un dispositivo Android.
+
+`./gradlew :shared:jvmTest` ejecuta las pruebas JVM de `commonTest` y `jvmTest`. Para comprobar además que compilan ambas interfaces:
+
+```bash
+./gradlew :shared:jvmTest :androidApp:assembleDebug :desktopApp:compileKotlin
+```
 
 El APK de depuración generado se encuentra en `androidApp/build/outputs/apk/debug/androidApp-debug.apk`. Sirve para desarrollo, no equivale a una versión de producción firmada para publicación. Para instalarlo en un dispositivo autorizado:
 
@@ -153,6 +190,16 @@ adb install -r androidApp/build/outputs/apk/debug/androidApp-debug.apk
 ```
 
 `adb devices` debe mostrar el dispositivo con estado `device`. La opción `-r` reinstala la aplicación; **normalmente conserva los datos** si el identificador de aplicación y la firma siguen siendo compatibles. No se debe asumir que los conservará tras una desinstalación, cambio de firma o limpieza de datos.
+
+### Generación del APK
+
+Desde la raíz del proyecto:
+
+```bash
+./gradlew :androidApp:assembleDebug
+```
+
+El archivo resultante es `androidApp/build/outputs/apk/debug/androidApp-debug.apk`. Puede compartirse mediante un enlace de descarga (por ejemplo, en un almacenamiento de archivos).
 
 ## Script de desarrollo
 
@@ -199,5 +246,3 @@ No publicar directorios `build/` o `.gradle/`, bases de datos locales, `local.pr
 - [Android Studio](https://developer.android.com/studio)
 - [Gradle Wrapper](https://docs.gradle.org/current/userguide/gradle_wrapper.html)
 - [Git](https://git-scm.com/doc)
-
-**Nota:** MiInventario es un proyecto académico en desarrollo. Los requerimientos pendientes describen el alcance previsto, no funcionalidades disponibles.

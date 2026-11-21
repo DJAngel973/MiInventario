@@ -42,6 +42,7 @@ import co.edu.poli.miinventario.product.Product
 import co.edu.poli.miinventario.product.ProductCategory
 import co.edu.poli.miinventario.product.canSaveQuantity
 import co.edu.poli.miinventario.product.isValidQuantity
+import co.edu.poli.miinventario.product.needsReplenishment
 import co.edu.poli.miinventario.product.quantityAtSteps
 import co.edu.poli.miinventario.ui.theme.InventoryColors
 import kotlinx.coroutines.CancellationException
@@ -112,7 +113,16 @@ fun ProductDetailScreen(
                     }
                     Column {
                         Text(product.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = InventoryColors.text)
-                        Text(product.category.label, style = MaterialTheme.typography.bodySmall, color = InventoryColors.blue)
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Text(product.category.label, style = MaterialTheme.typography.bodySmall, color = InventoryColors.blue)
+                            if (product.needsReplenishment()) {
+                                Text(
+                                    "Por reponer", style = MaterialTheme.typography.labelSmall, color = deleteRed,
+                                    modifier = Modifier.background(Color(0xFF3A1F25), RoundedCornerShape(10.dp))
+                                        .padding(horizontal = 7.dp, vertical = 2.dp)
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -122,7 +132,7 @@ fun ProductDetailScreen(
                 shape = RoundedCornerShape(14.dp), border = BorderStroke(1.dp, InventoryColors.border)
             ) {
                 Column(modifier = Modifier.padding(horizontal = 14.dp, vertical = 4.dp)) {
-                    DetailRow("Cantidad disponible", "${product.quantity.displayQuantity()} ${product.unit.symbol}")
+                    DetailRow("Cantidad disponible", "${product.quantity.displayQuantity()} ${product.unit.symbol}", product.needsReplenishment())
                     DetailRow("Cantidad mínima", "${product.minimumQuantity.displayQuantity()} ${product.unit.symbol}")
                     DetailRow("Unidad de medida", product.unit.symbol)
                 }
@@ -180,6 +190,14 @@ fun ProductDetailScreen(
                         )
                     ) { Text("+") }
                 }
+            }
+
+            if (product.needsReplenishment()) {
+                Text(
+                    "⚠ En el mínimo o por debajo (${product.minimumQuantity.displayQuantity()} ${product.unit.symbol})",
+                    color = deleteRed,
+                    style = MaterialTheme.typography.bodySmall
+                )
             }
 
             quantityError?.let { Text(it, color = deleteRed, style = MaterialTheme.typography.bodyMedium) }
@@ -284,7 +302,7 @@ fun ProductDetailScreen(
 }
 
 @Composable
-private fun DetailRow(label: String, value: String) {
+private fun DetailRow(label: String, value: String, highlight: Boolean = false) {
     Row(
         modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
@@ -292,6 +310,6 @@ private fun DetailRow(label: String, value: String) {
     ) {
         Text(label, style = MaterialTheme.typography.bodyMedium, color = InventoryColors.mutedText)
         Spacer(Modifier.size(8.dp))
-        Text(value, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold, color = InventoryColors.text)
+        Text(value, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold, color = if (highlight) deleteRed else InventoryColors.text)
     }
 }
